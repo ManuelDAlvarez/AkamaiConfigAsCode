@@ -1,7 +1,7 @@
 Akamai for DevOps: Configuration as a Code
 Manuel Alvarez
 Documentation available at https://developer.akamai.com/api/luna/papi/resources.html 
-Mar 30, 2017
+May 17, 2017
 
 ********************************************************
 ******* Step 1: Get Configuration Information	*******
@@ -9,7 +9,7 @@ Mar 30, 2017
 
 *** For the API we need the contractID and groupID. 
 *** Get contractId
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/contracts/ | jq '.contracts.items'
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/contracts/ | jq '.contracts.items'
 [
   {
     "contractId": "ctr_C-1FRYVV3",
@@ -17,9 +17,8 @@ $ http --auth-type edgegrid -a DevRel: :/papi/v0/contracts/ | jq '.contracts.ite
   }
 ]
 
-
 *** Let's get the groupId of _Demos. I get the array and then filter by the groupName I am looking for using jq
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/groups | jq '.groups.items[] | select (.groupName =="_Demos")'
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/groups | jq '.groups.items[] | select (.groupName =="_Demos")'
 {
   "groupName": "_Demos",
   "groupId": "grp_91216",
@@ -30,55 +29,72 @@ $ http --auth-type edgegrid -a DevRel: :/papi/v0/groups | jq '.groups.items[] | 
 }
 
 
-*** to get a property, we need to know which property we are looking for. If you know the name of the property is all-mainsitedemo, then do
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/properties/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.properties.items[] | select (.propertyName == "all-mainsitedemo")'
-{
-  "accountId": "act_B-C-1FRYVMN",
-  "contractId": "ctr_C-1FRYVV3",
-  "groupId": "grp_91216",
-  "propertyId": "prp_351972",
-  "propertyName": "all-mainsitedemo",
-  "latestVersion": 3,
-  "stagingVersion": 1,
-  "productionVersion": null
-}
-
-*** if you do not know the exact property name, search for it as 
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/properties/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.properties.items[] | select (.propertyName | test ("mainsitedemo"))'
+*** to get a property, we need to know which property we are looking for. If you know the name of the property is prod-mainsitedemo, then do
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.properties.items[] | select (.propertyName == "prod-mainsitedemo")'
 {
   "accountId": "act_B-C-1FRYVMN",
   "contractId": "ctr_C-1FRYVV3",
   "groupId": "grp_91216",
   "propertyId": "prp_348544",
   "propertyName": "prod-mainsitedemo",
-  "latestVersion": 4,
-  "stagingVersion": null,
+  "latestVersion": 3,
+  "stagingVersion": 1,
+  "productionVersion": null
+}
+
+*** if you do not know the exact property name, search for it as 
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.properties.items[] | select (.propertyName | test ("mainsitedemo"))'
+{
+  "accountId": "act_B-C-1FRYVMN",
+  "contractId": "ctr_C-1FRYVV3",
+  "groupId": "grp_91216",
+  "propertyId": "prp_348544",
+  "propertyName": "prod-mainsitedemo",
+  "latestVersion": 9,
+  "stagingVersion": 9,
   "productionVersion": null
 }
 {
   "accountId": "act_B-C-1FRYVMN",
   "contractId": "ctr_C-1FRYVV3",
   "groupId": "grp_91216",
-  "propertyId": "prp_351972",
+  "propertyId": "prp_348544",
   "propertyName": "all-mainsitedemo",
-  "latestVersion": 3,
-  "stagingVersion": 1,
+  "latestVersion": 9,
+  "stagingVersion": 7,
   "productionVersion": null
 }
 
+*** get the latest version
+http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/prp_348544/versions/latest contractId==ctr_C-1FRYVV3 groupId==grp_91216
 
-*** Now let's get the latest configuration that is active in Staging and save it as a JSON object. 
-*** If you need to find an specific version use something like /papi/v0/properties/prp_351972/versions/1/rules and replace 1 with the version you want
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/properties/prp_351972/versions/1/rules contractId==ctr_C-1FRYVV3 groupId==grp_91216 > all-mainsitedemo.json
+*** list versions
+http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/prp_348544/versions/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 
+
+*** find the latest version active in Staging
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/prp_348544/versions/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.versions.items[] | select (.stagingStatus=="ACTIVE")'
+{
+  "propertyVersion": 9,
+  "updatedByUser": "2tnfr6asspryv6zj",
+  "updatedDate": "2017-04-20T20:15:00Z",
+  "productionStatus": "INACTIVE",
+  "stagingStatus": "ACTIVE",
+  "etag": "d24f4ddced6dd99008225553aeee8f7256339cfc",
+  "productId": "prd_SPM",
+  "ruleFormat": "latest"
+}
+
+*** Now let's get that version and save it as a JSON object. 
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/prp_348544/versions/9/rules contractId==ctr_C-1FRYVV3 groupId==grp_91216 > prod-mainsitedemo.json
 
 *** this json file is the configuration rules that you will store in your code repository
- head -22 all-mainsitedemo.json 
+ head -22 prod-mainsitedemo.json 
 {
   "accountId" : "act_B-C-1FRYVMN",
   "contractId" : "ctr_C-1FRYVV3",
   "groupId" : "grp_91216",
-  "propertyId" : "prp_351972",
-  "propertyName" : "all-mainsitedemo",
+  "propertyId" : "prp_348544",
+  "propertyName" : "prod-mainsitedemo",
   "propertyVersion" : 1,
   "etag" : "18cdf49b5902fea2b0feaef155a82bd0c575bc61",
   "rules" : {
@@ -102,13 +118,13 @@ $ http --auth-type edgegrid -a DevRel: :/papi/v0/properties/prp_351972/versions/
 ********************************************************
 
 *** if you forgot the etag or version from Step 1 , get it again
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/properties/prp_351972/versions/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.versions.items[].etag, .versions.items[].propertyVersion'
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/prp_348544/versions/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 | jq '.versions.items[].etag, .versions.items[].propertyVersion'
 "18cdf49b5902fea2b0feaef155a82bd0c575bc61"
 1
 
 **** do a POST to create a new version. You need a POST body yo pass the version and etag of the version you are building from. I am using HTTPie capabilities to do so
-$ http -v --auth-type edgegrid -a DevRel: POST :/papi/v0/properties/prp_351972/versions/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 'createFromVersion:="1"' 'createFromVersionEtag:="18cdf49b5902fea2b0feaef155a82bd0c575bc61"'
-POST /papi/v0/properties/prp_351972/versions/?contractId=ctr_C-1FRYVV3&groupId=grp_91216 HTTP/1.1
+$ http -v --auth-type edgegrid -a DevRelMD: POST :/papi/v0/properties/prp_348544/versions/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 'createFromVersion:="9"' 'createFromVersionEtag:="d24f4ddced6dd99008225553aeee8f7256339cfc"'
+POST /papi/v0/properties/prp_348544/versions/?contractId=ctr_C-1FRYVV3&groupId=grp_91216 HTTP/1.1
 Accept: application/json
 Accept-Encoding: gzip, deflate
 Authorization: EG1-HMAC-SHA256...
@@ -119,8 +135,8 @@ Host: ...luna.akamaiapis.net
 User-Agent: HTTPie/0.9.4
 
 {
-    "createFromVersion": "1", 
-    "createFromVersionEtag": "18cdf49b5902fea2b0feaef155a82bd0c575bc61"
+    "createFromVersion": "9", 
+    "createFromVersionEtag": "9169e8f7c19224980c800e517af0e453a0bd4e72"
 }
 
 HTTP/1.1 201 Created
@@ -129,12 +145,12 @@ Content-Encoding: gzip
 Content-Length: 119
 Content-Type: application/json;charset=UTF-8
 Date: Thu, 09 Mar 2017 22:20:13 GMT
-Location: https://...luna.akamaiapis.net/papi/v0/properties/prp_351972/versions/2?contractId=ctr_C-1FRYVV3&groupId=grp_91216
+Location: https://...luna.akamaiapis.net/papi/v0/properties/prp_348544/versions/2?contractId=ctr_C-1FRYVV3&groupId=grp_91216
 Server: Apache-Coyote/1.1
 Vary: Accept-Encoding
 
 {
-    "versionLink": "/papi/v0/properties/prp_351972/versions/2?contractId=ctr_C-1FRYVV3&groupId=grp_91216"
+    "versionLink": "/papi/v0/properties/prp_348544/versions/10?contractId=ctr_C-1FRYVV3&groupId=grp_91216"
 }
 
 *** The returned link is your new version. Rules are just like the previous one
@@ -144,7 +160,7 @@ Vary: Accept-Encoding
 ********************************************************
 
 *** I updated a TTL for testing, but you can add rules as you need. The json file has the same name as before
-http --auth-type edgegrid -a DevRel: PUT :/papi/v0/properties/prp_351972/versions/1/rules contractId==ctr_C-1FRYVV3 groupId==grp_91216 @all-mainsitedemo.json
+$ http --auth-type edgegrid -a DevRelMD: PUT :/papi/v0/properties/prp_348544/versions/10/rules contractId==ctr_C-1FRYVV3 groupId==grp_91216 @prod-mainsitedemo.json
 
 HTTP/1.1 200 OK
 Connection: keep-alive
@@ -167,8 +183,8 @@ X-Limit-Max-Nested-Rules-Remaining: 5
     "contractId": "ctr_C-1FRYVV3", 
     "etag": "a345201dec0942cbee85ed1822dc6295d83c1c56", 
     "groupId": "grp_91216", 
-    "propertyId": "prp_351972", 
-    "propertyName": "all-mainsitedemo", 
+    "propertyId": "prp_348544", 
+    "propertyName": "prod-mainsitedemo", 
     "propertyVersion": 1, 
     "ruleFormat": "latest", 
     "rules": {
@@ -182,30 +198,27 @@ X-Limit-Max-Nested-Rules-Remaining: 5
 ******* Step 4: Activate new version	****************
 ********************************************************
 *** Get Warnings first
-$ http --auth-type edgegrid -a DevRel: POST :/papi/v0/properties/prp_351972/activations/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 "propertyVersion:=1" 'network:="STAGING"' 'note:="test activation"' 'notifyEmails:=["maalvare@akamai.com"]' | jq '.warnings[].messageId'
-
+$ http --auth-type edgegrid -a DevRelMD: POST :/papi/v0/properties/prp_348544/activations/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 "propertyVersion:=10" 'network:="STAGING"' 'note:="test activation"' 'notifyEmails:=["maalvare@akamai.com"]' | jq '.warnings[].messageId'
+"msg_eac797d55da505d7f40dcd3857d003c83ba8d7c1"
 "msg_290f53854550532a8eb705d7f8b27be43dffe837"
 "msg_290f53854550532a8eb705d7f8b27be43dffe837"
 "msg_290f53854550532a8eb705d7f8b27be43dffe837"
 "msg_290f53854550532a8eb705d7f8b27be43dffe837"
 "msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9"
-"msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9"
-"msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9"
-"msg_e94d764742a56988686c1e630cbe66c30eb52bf5"
 "msg_e6a5916076aec57c3d1abce76c48991b482a8c2d"
 "msg_fa11a8cda8d722c0a25784ad02d627287777a825"
 "msg_cf72b79966c38c571df290731d4c83dd97969388"
 "msg_7d8d4adbde0b4e72feae2065413d9c5cd5fa9b89"
 
 **** ACTIVATE after ak the warning
-$ http --auth-type edgegrid -a DevRel: POST :/papi/v0/properties/prp_351972/activations/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 "propertyVersion:=1" 'network:="STAGING"' 'note:="test activation"' 'notifyEmails:=["maalvare@akamai.com"]' 'acknowledgeWarnings:=["msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9","msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9","msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9","msg_e94d764742a56988686c1e630cbe66c30eb52bf5","msg_e6a5916076aec57c3d1abce76c48991b482a8c2d","msg_fa11a8cda8d722c0a25784ad02d627287777a825","msg_cf72b79966c38c571df290731d4c83dd97969388","msg_7d8d4adbde0b4e72feae2065413d9c5cd5fa9b89"]'
+$ http --auth-type edgegrid -a DevRelMD: POST :/papi/v0/properties/prp_348544/activations/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 "propertyVersion:=11" 'network:="STAGING"' 'note:="test activation"' 'notifyEmails:=["maalvare@akamai.com"]' 'acknowledgeWarnings:=["msg_eac797d55da505d7f40dcd3857d003c83ba8d7c1","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_290f53854550532a8eb705d7f8b27be43dffe837","msg_8dcd53f1a10b915c1c7d1c3d3cb13261d742d8a9","msg_e6a5916076aec57c3d1abce76c48991b482a8c2d","msg_fa11a8cda8d722c0a25784ad02d627287777a825","msg_cf72b79966c38c571df290731d4c83dd97969388","msg_7d8d4adbde0b4e72feae2065413d9c5cd5fa9b89"]'
 HTTP/1.1 201 Created
 Connection: keep-alive
 Content-Encoding: gzip
 Content-Length: 131
 Content-Type: application/json;charset=UTF-8
 Date: Thu, 09 Mar 2017 22:02:41 GMT
-Location: https://...luna.akamaiapis.net/papi/v0/properties/prp_351972/activations/atv_4328837?contractId=ctr_C-1FRYVV3&groupId=grp_91216
+Location: https://...luna.akamaiapis.net/papi/v0/properties/prp_348544/activations/atv_4328837?contractId=ctr_C-1FRYVV3&groupId=grp_91216
 Server: Apache-Coyote/1.1
 Vary: Accept-Encoding
 X-RateLimit-Activations-Limit: 100
@@ -213,11 +226,11 @@ X-RateLimit-Activations-Remaining: 99
 X-RateLimit-Activations-Reset: 2017-03-10T22:02:41Z
 
 {
-    "activationLink": "/papi/v0/properties/prp_351972/activations/atv_4328837?contractId=ctr_C-1FRYVV3&groupId=grp_91216"
+    "activationLink": "/papi/v0/properties/prp_348544/activations/atv_4328837?contractId=ctr_C-1FRYVV3&groupId=grp_91216"
 }
 
 *** to activate in Production repeat the steps but change network to PRODUCTION. It is case sensitive
-$ http --auth-type edgegrid -a DevRel: POST :/papi/v0/properties/prp_351972/activations/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 "propertyVersion:=1" 'network:="PRODUCTION"' 'note:="test activation"' 'notifyEmails:=["maalvare@akamai.com"]' | jq '.warnings[].messageId'
+$ http --auth-type edgegrid -a DevRelMD: POST :/papi/v0/properties/prp_348544/activations/ contractId==ctr_C-1FRYVV3 groupId==grp_91216 "propertyVersion:=1" 'network:="PRODUCTION"' 'note:="test activation"' 'notifyEmails:=["maalvare@akamai.com"]' | jq '.warnings[].messageId'
 "msg_e6a5916076aec57c3d1abce76c48991b482a8c2d"
 "msg_fa11a8cda8d722c0a25784ad02d627287777a825"
 "msg_cf72b79966c38c571df290731d4c83dd97969388"
@@ -246,7 +259,7 @@ $ http --auth-type edgegrid -a DevRel: POST :/papi/v0/properties/prp_351972/acti
 
 *** Find the contract, but this is how you do
 *** Using jq to extract from json
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/contracts/ | jq '.contracts.items'
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/contracts/ | jq '.contracts.items'
 [
   {
     "contractId": "ctr_C-1FRYVV3",
@@ -256,7 +269,7 @@ $ http --auth-type edgegrid -a DevRel: :/papi/v0/contracts/ | jq '.contracts.ite
 
 *** Then get the proper group
 *** To filter an array with JQ you need to add []
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/groups | jq '.groups.items[].groupName'
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/groups | jq '.groups.items[].groupName'
 "Davey Shafik"
 "Colin Bendell"
 "Kirsten Hunter"
@@ -286,8 +299,8 @@ Vary: Accept-Encoding
     "accountId": "act_B-C-1FRYVMN", 
     "contractId": "ctr_C-1FRYVV3", 
     "groupId": "grp_91216", 
-    "propertyId": "prp_351972", 
-    "propertyName": "all-mainsitedemo", 
+    "propertyId": "prp_348544", 
+    "propertyName": "prod-mainsitedemo", 
     "versions": {
         "items": [
             {
@@ -326,19 +339,19 @@ Vary: Accept-Encoding
 
 *** Get the latest version of a configuration
 *** Follow the link to get the details
-$ http --auth-type edgegrid -a DevRel: :/papi/v0/properties/prp_351972/versions/latest contractId==ctr_C-1FRYVV3 groupId==grp_91216 activeOn==staging
+$ http --auth-type edgegrid -a DevRelMD: :/papi/v0/properties/prp_348544/versions/latest contractId==ctr_C-1FRYVV3 groupId==grp_91216 activeOn==staging
 HTTP/1.1 302 Moved Temporarily
 Connection: keep-alive
 Content-Encoding: gzip
 Content-Length: 135
 Content-Type: application/json;charset=UTF-8
 Date: Thu, 30 Mar 2017 19:07:15 GMT
-Location: https://akab-mrkoibocclsemfee-k2vkxluzjjnljgkf.luna.akamaiapis.net/papi/v0/properties/prp_351972/versions/3?contractId=ctr_C-1FRYVV3&groupId=grp_91216&activeOn=staging
+Location: https://akab-mrkoibocclsemfee-k2vkxluzjjnljgkf.luna.akamaiapis.net/papi/v0/properties/prp_348544/versions/3?contractId=ctr_C-1FRYVV3&groupId=grp_91216&activeOn=staging
 Server: Apache-Coyote/1.1
 Vary: Accept-Encoding
 
 {
-    "versionLink": "/papi/v0/properties/prp_351972/versions/3?contractId=ctr_C-1FRYVV3&groupId=grp_91216&activeOn=staging"
+    "versionLink": "/papi/v0/properties/prp_348544/versions/3?contractId=ctr_C-1FRYVV3&groupId=grp_91216&activeOn=staging"
 }
 
 
